@@ -1,7 +1,11 @@
-from skimage.measure import compare_ssim 
 import numpy as np
 import cv2
-from math import sqrt
+from skimage.measure.entropy import shannon_entropy
+from skimage.measure import compare_ssim 
+from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.filters import convolve
+from scipy.ndimage.filters import correlate
+from scipy.fftpack import fftshift
 
 def IQI(X, Y):
 	"""
@@ -14,39 +18,39 @@ def IQI(X, Y):
 	
 	Returns the Image Quality Index of X - IQI(X) [-1, 1]
 	"""
-	
-	x_ = np.mean(X)
-	y_ = np.mean(Y)
-	
-	
-	w, h = X.shape 
-	
-	x_std = 0
-	y_std = 0
-	xy_std = 0
-	for i in range(w):
-		for j in range(h):
-			x_std = x_std + ((X[i, j] - x_) **2)
-			y_std = y_std + ((Y[i, j] - y_) **2)
-			xy_std = xy_std + ((X[i, j] - x_) * (Y[i, j] - y_))
+	def __conv(x):
+		window = np.ones((BLOCK_SIZE, BLOCK_SIZE))
+		if len(x.shape) < 3:
+			return convolve(x, window)
+		else:
+			channels = x.shape[2]
+			f = [convolve(x[:, :, c], window) for c in range(channels)]
+			return np.array(f)
 
-	x_std = x_std / (w + h - 1)
-	y_std = y_std / (w + h - 1)
-	xy_std = xy_std / (w + h - 1)
-	
-	x_std_sqrt = x_std ** (1/2)
-	y_std_sqrt = y_std ** (1/2)
-	
-	# Correlation coefficient
-	Q = (0.0 if ((x_std_sqrt * y_std_sqrt) == 0.) else xy_std/(x_std_sqrt * y_std_sqrt))
-	
-	# Mean luminance
-	Q = Q * (2 * x_ * y_)/(x_ * x_ + y_ * y_)
-	
-	# Contrasts
-	Q = Q * (2 * x_std_sqrt * y_std_sqrt) / (x_std + y_std)
-	
-	return Q
+	def __get_filtered(im1, im2, BLOCK_SIZE):
+		(im1im1, im2im2, im1im2) = (im1 * im1, im2 * im2, im1 * im2)
+		(b1, b2, b3, b4, b5) = map(__conv, (im1, im2, im1im1, im2im2, im1im2))
+		(b6, b7) = (b1 * b2, b1 * b1 + b2 * b2)
+		return (b1, b2, b3, b4, b5, b6, b7)
+
+	def __get_quality_map(b1, b2, b3, b4, b5, b6, b7, BLOCK_SIZE):
+		N = BLOCK_SIZE * BLOCK_SIZE
+		numerator = 4.0 * (N * b5 - b6) * b6
+		denominator1 = N * (b3 + b4) - b7
+		denominator = denominator1 * b7
+		index = np.bitwise_and(denominator1 == 0, b7 != 0)
+		quality_map = np.ones(denominator.shape)
+		quality_map[index] = 2.0 * b6[index] / b7[index]
+		index = (denominator != 0)
+		quality_map[index] = numerator[index] / denominator[index]
+		return quality_map[index]
+
+	BLOCK_SIZE = 8
+	(img1, img2) = (X.astype('double'), Y.astype('double'))
+	(b1, b2, b3, b4, b5, b6, b7) = __get_filtered(img1, img2, BLOCK_SIZE)
+	quality_map = __get_quality_map(b1, b2, b3, b4, b5, b6, b7, BLOCK_SIZE)
+	value = quality_map.mean()
+	return value
 	
 def SSIM(X, Y):
 	"""
@@ -59,9 +63,9 @@ def SSIM(X, Y):
 	Returns the Structural Similarity - SSIM(X, Y) [-1, 1]
 	"""
 	
-	return compare_ssim(X, Y)
+	return compare_ssim(X, Y, multichannel=True)
 	
-def entr(coeffs):	
+def entr(coeffs):
 	"""
 	Calculate the Shannon Entropy of an image
 	
@@ -70,11 +74,7 @@ def entr(coeffs):
 	
 	Returns entropy - H(coeffs)
 	"""
-	res = coeffs[coeffs > 0]
-	res = res/res.sum()
-	res = (res * np.log2(res))
-	
-	return -res.sum()
+	return shannon_entropy(coeffs)
 	
 
 def spatial(I):
@@ -84,44 +84,24 @@ def spatial(I):
 	
 	I - the image
 	
-	
 	Returns the Spatial Frequency - SF(I) > 0
 	"""
 	w, h = I.shape[0], I.shape[1]
 	
-	# Row frequency
-	row = 0
-	for i in range(w):
-		for j in range(1, h):
-			row = row + ((int(I[i, j]) - int(I[i, j-1])) ** 2)
-	row = row / (w*h)
-		
-	# Column frequency
-	column = 0
-	for j in range(h):
-		for i in range(1, w):
-			column = column + ((int(I[i, j]) - int(I[i - 1, j])) ** 2)
-	column = column / (w*h)
+	row = (np.diff(I, axis=1)**2).mean(axis=(0, 1))
+	column = (np.diff(I, axis=0)**2).mean(axis=(0, 1))
 	
 	# Main Diagonal frequency
-	diagonal_m = 0
-	for i in range(1, w):
-		for j in range(1, h):
-			diagonal_m = diagonal_m + ((int(I[i, j]) - int(I[i - 1, j - 1])) ** 2)
-	diagonal_m = diagonal_m / (w*h)
-	diagonal_m = diagonal_m / sqrt(2)
+	diagonal_m = (I[1:, 1:] - I[:-1, :-1])**2
+	diagonal_m = diagonal_m.mean(axis=(0, 1)) / np.sqrt(2)
 	
 	# Secondary Diagonal frequency
-	diagonal_s = 0
-	for j in range(h - 1):
-		for i in range(1, w):
-			diagonal_s = diagonal_s + ((int(I[i, j]) - int(I[i - 1, j + 1])) ** 2)
-	diagonal_s = diagonal_s / (w*h)
-	diagonal_s = diagonal_s / sqrt(2)
+	diagonal_s = (I[1:, :-1] - I[:-1, 1:]) ** 2
+	diagonal_s = diagonal_s.mean(axis=(0, 1)) / np.sqrt(2)
 	
 	# SF = sqrt(RF^2 + CF^2 + MDF^2 + SDF^2)
 	
-	return sqrt(row * column * diagonal_m * diagonal_s)
+	return np.sqrt(row * column * diagonal_m * diagonal_s)
 
 def spatial_reference(X, Y):
 	"""
@@ -134,46 +114,23 @@ def spatial_reference(X, Y):
 	Returns the Spatial Frequency - SF(X, Y) > 0
 	"""
 	
-	w, h = X.shape
+	first = np.diff(X, axis=1)**2
+	second = np.diff(Y, axis=1)**2
+	row = np.maximum(first, second).mean(axis=(0, 1))
 	
-	row = 0
-	first, second = 0, 0
-	for i in range(w):
-		for j in range(1, h):
-			first = (int(X[i, j]) - int(X[i, j-1])) ** 2
-			second = (int(Y[i, j]) - int(Y[i, j-1])) ** 2
-			row = row + max(first, second)
-	row = row / (w*h)
-			
-	column = 0
-	for j in range(h):
-		for i in range(1, w):
-			first = (int(X[i, j]) - int(X[i - 1, j])) ** 2
-			second = (int(Y[i, j]) - int(Y[i - 1, j])) ** 2
-			column = column + max(first ,second)
-			
-	column = column / (w*h)
+	first = np.diff(X, axis=0)**2
+	second = np.diff(Y, axis=0)**2
+	column = np.maximum(first, second).mean(axis=(0, 1))
+	
+	first = (X[1:, 1:] - Y[:-1, :-1])**2
+	second = (X[1:, 1:] - Y[:-1, :-1])**2
+	diagonal_m = np.maximum(first, second).mean(axis=(0, 1)) / np.sqrt(2)
 
-	diagonal_m = 0
-	for i in range(1, w):
-		for j in range(1, h):
-			first = (int(X[i, j]) - int(X[i - 1, j - 1])) ** 2
-			second = (int(Y[i, j]) - int(Y[i - 1, j - 1])) ** 2
-			diagonal_m = diagonal_m + max(first, second)
-	diagonal_m = diagonal_m / (w*h)
-	diagonal_m = diagonal_m / sqrt(2)
+	first = (X[1:, :-1] - Y[:-1, 1:]) ** 2
+	second = (X[1:, :-1] - Y[:-1, 1:]) ** 2
+	diagonal_s = np.maximum(first, second).mean(axis=(0, 1)) / np.sqrt(2)
 	
-	diagonal_s = 0
-	for j in range(h - 1):
-		for i in range(1, w):
-			first = (int(X[i, j]) - int(X[i - 1, j + 1])) ** 2
-			second = (int(Y[i, j]) - int(Y[i - 1, j + 1])) ** 2
-			diagonal_s = diagonal_s + max(first, second)
-	diagonal_s = diagonal_s / (w*h)
-	diagonal_s = diagonal_s / sqrt(2)
-
-	
-	return sqrt(row * column * diagonal_s * diagonal_m)
+	return np.sqrt(row * column * diagonal_s * diagonal_m)
 	
 
 def rSFe(SF_input, SF_ref):
@@ -188,4 +145,4 @@ def rSFe(SF_input, SF_ref):
 	with some distortion or noise introduced, has resulted. A negative result denotes that an under-fused image, 
 	with some meaningful information lost, has been produced.
 	"""
-	return (SF_input - SF_ref)/SF_ref
+	return (SF_input - SF_ref) / SF_ref

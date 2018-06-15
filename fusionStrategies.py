@@ -9,10 +9,6 @@ from scipy import ndimage
 @adapt_rgb(each_channel)
 def sobel_each(image):
 	return filters.sobel(image)
-	
-@adapt_rgb(each_channel)
-def std_each(image):
-	return ndimage.filters.generic_filter(image, np.std, (4, 4), mode='constant')
 
 def MACD(coeff1, coeff2):
 	"""

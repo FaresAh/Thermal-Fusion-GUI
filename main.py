@@ -28,7 +28,7 @@ def show_images(images, lines = 1, titles = None, blocking = False):
 	fig.tight_layout()
 	plt.show(block=blocking)
 
-def main(rgb_path, ir_path, strategy = "All", gray=False, wavelet='db'):
+def main(rgb_path, ir_path, strategy = "All", wavelet='db'):
 	"""
 	Main Fusion procedure, applies the fusion algorithm on the image
 	
@@ -46,10 +46,6 @@ def main(rgb_path, ir_path, strategy = "All", gray=False, wavelet='db'):
 	"""
 	I1 = cv2.imread(rgb_path, 1)[:,:382]
 	I2 = cv2.imread(ir_path, 1)
-	
-	if gray:
-		I1 = cv2.cvtColor(I1, cv2.COLOR_RGB2GRAY)
-		I2 = cv2.cvtColor(I2, cv2.COLOR_RGB2GRAY)
 	
 	if (strategy == "All"):
 		R_min = fuseSelection(I1, I2, "Min", wavelet)
@@ -108,19 +104,19 @@ def fuseSelection(I1, I2, strategy, wavelet):
 		
 	timing = (time.time() - time_start)
 	
-	# sp_input = spatial_reference(I1, I2)
-	# sp_m = spatial(gray)
+	sp_input = spatial_reference(I1, I2)
+	sp_m = spatial(result)
 
-	# Entropy_m = "%.3f" % entr(gray)
-	# IQI_m = "%.3f" % IQI(I1_gray, gray)
-	# Spatial_m = "%.3f" % sp_m
-	# rSFe_m = "%.3f" % ((sp_m - sp_input)/sp_input)
-	# SSIM_m = "%.3f" % SSIM(I1_gray, gray)
+	Entropy_m = "%.3f" % shannon_entropy(result)
+	IQI_m = "%.3f" % IQI(I1, result)
+	Spatial_m = "%.3f" % sp_m.sum()
+	rSFe_m = "%.3f" % rSFe(sp_input, sp_m).sum()
+	SSIM_m = "%.3f" % SSIM(I1, result)
 		
-	# array.append("Spatial Frequency of " + strategy + " : " + Spatial_m + ", rsFe : " + rSFe_m)
-	# array.append("SSIM of " + strategy + " : " + SSIM_m)
-	# array.append("Entropy of " + strategy + " : " + Entropy_m)
-	# array.append("IQI of " + strategy + " : " + IQI_m)
+	array.append("Spatial Frequency of " + strategy + " : " + Spatial_m + ", rsFe : " + rSFe_m)
+	array.append("SSIM of " + strategy + " : " + SSIM_m)
+	array.append("Entropy of " + strategy + " : " + Entropy_m)
+	array.append("IQI of " + strategy + " : " + IQI_m)
 	array.append("Time elapsed for " + strategy + " : " + str(timing)+ "s")
 
 	Results = [result]
@@ -137,15 +133,12 @@ if __name__ == '__main__':
 	
 	# strategy = input("Strategy to use : (All - Min - Max - Mean - Entropy - MACD - Edge - Deviation) : ")
 	
-	# gray = int(input("Grayscale ? (0 for no) : "))
-	
 	rgb_path = 'examples/rgb.jpg'
 	ir_path = 'examples/ir.png'
 	strategy = 'All'
-	gray = 1
 	
 	
-	array, Results, Titles = main(rgb_path, ir_path, strategy, gray != 0)
+	array, Results, Titles = main(rgb_path, ir_path, strategy)
 
 	for s in array:
 		print(s)
