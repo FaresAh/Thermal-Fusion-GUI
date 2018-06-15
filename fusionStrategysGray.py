@@ -1,9 +1,14 @@
 import numpy as np
 import math
 from skimage import filters
+from skimage.color.adapt_rgb import adapt_rgb, each_channel
 from metrics import entr
 from skimage.measure.entropy import shannon_entropy
 from scipy import ndimage
+
+@adapt_rgb(each_channel)
+def sobel_each(image):
+	return filters.sobel(image)
 
 def MACD(coeff1, coeff2):
 	"""
@@ -35,7 +40,11 @@ def Match(coeff1, coeff2):
 	Returns match coefficient
 	"""
 	mult = (coeff1 * coeff2) / (np.abs(coeff1)**2 + np.abs(coeff2)**2 + np.finfo(np.float32).eps)
-	return ndimage.convolve(mult, np.ones((5, 5, 3)), mode='constant')
+	if mult.ndim == 3:
+		kernel = np.ones((5, 5, 3))
+	else:
+		kernel = np.ones((5, 5))
+	return ndimage.convolve(mult, kernel, mode='constant')
 
 def Decision(coeff1, coeff2, m, fract = 0.5):
 	"""
@@ -52,7 +61,22 @@ def Decision(coeff1, coeff2, m, fract = 0.5):
 	mean = np.mean(m)
 	delta = coeff1 + coeff2
 	return np.where((delta == 0) | (m > fract * mean), 0.5, coeff1 / (delta + np.finfo(np.float32).eps))
-
+	
+def coeffsEntropy(coeff1, coeff2):
+	"""
+	Apply the entropy fusion strategy to the coefficients given in parameters
+	
+	coeff1 - coefficient of the RGB image
+	coeff2 - coefficient of the IR image
+	
+	
+	Returns fused coefficient 
+	"""
+	entropy1 = shannon_entropy(coeff1 - coeff1.min())
+	entropy2 = shannon_entropy(coeff2 - coeff2.min())
+	delt = entropy1 + entropy2
+	return (entropy1 * coeff1 + entropy2 * coeff2) / delt
+	
 def edgeDetection(coeff1, coeff2):
 	"""
 	Fuse two coefficients by first applying a Sobel filter, then taking a weighted average
@@ -61,18 +85,15 @@ def edgeDetection(coeff1, coeff2):
 	coeff1 	- first coefficient
 	coeff2 	- second coefficient
 	"""
-	edges_RGB = filters.sobel(coeff1)
-	edges_IR = filters.sobel(coeff2)
+	edges_RGB = sobel_each(coeff1)
+	edges_IR = sobel_each(coeff2)
 	
-	entropy_RGB = entr(edges_RGB)
-	entropy_IR = entr(edges_IR)
+	entropy_RGB = shannon_entropy(edges_RGB - edges_RGB.min())
+	entropy_IR = shannon_entropy(edges_IR - edges_IR.min())
 	
-	entropy_sum = entropy_RGB + entropy_IR
+	entropy_sum = entropy_RGB + entropy_IR + np.finfo(np.float32).eps
 	
-	if (entropy_sum > 0.):
-		return entropy_RGB/entropy_sum * coeff1 + entropy_IR/entropy_sum * coeff2
-	else:
-		return (coeff1 + coeff2)/2.
+	return (entropy_RGB * coeff1 + entropy_IR * coeff2) / entropy_sum
 
 def deviation(coeff1, coeff2, window_size = 8):
 	"""

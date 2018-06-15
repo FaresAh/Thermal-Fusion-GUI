@@ -73,7 +73,7 @@ def main(rgb_path, ir_path, strategy = "All", gray = False, wavelet = 'db'):
 		return (array, Results, Titles)
 		
 	else:
-		if (strategy == "Edge" or strategy == "Deviation"):
+		if (strategy == "Deviation"):
 			return fuseSelection(I1, I2, I1_gray, I2_gray, strategy, sp_input, True, wavelet)
 		else:
 			return fuseSelection(I1, I2, I1_gray, I2_gray, strategy, sp_input, gray, wavelet)
@@ -102,10 +102,7 @@ def fuseSelection(I1, I2, I1_gray, I2_gray, strategy, sp_input, is_gray, wavelet
 	
 	time_start = time.time()
 	
-	if (is_gray and strategy == "Edge"):
-		gray = fusedEdge(I1_gray, I2_gray, wavelet)
-		Result = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
-	elif (is_gray):
+	if (is_gray):
 		gray = fusedImage(I1_gray, I2_gray, strategy, wavelet, is_gray)
 		Result = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 	else:
@@ -146,8 +143,8 @@ if __name__ == '__main__':
 	
 	rgb_path = 'examples/rgb.jpg'
 	ir_path = 'examples/ir.png'
-	strategy = 'MACD'
-	gray = 0
+	strategy = 'Edge'
+	gray = 1
 	
 	
 	array, Results, Titles = main(rgb_path, ir_path, strategy, gray != 0)
