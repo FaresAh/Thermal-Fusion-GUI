@@ -89,8 +89,8 @@ class Window(Frame):
 	def showImg(self):
 		s = self.entry.get()
 		
-		RGB = ImageTk.PhotoImage(Image.open("cropped/cropped" + s + ".jpg"))
-		IR = ImageTk.PhotoImage(Image.open("raw_image/" + s + "_0to1.png"))
+		RGB = ImageTk.PhotoImage(Image.open('examples/rgb.jpg'))
+		IR = ImageTk.PhotoImage(Image.open('examples/ir.png'))
 		
 		self.canvasRGB.create_image(0, 0, image=RGB, anchor=NW)
 		self.canvasIR.create_image(0, 0, image=IR, anchor=NW)
@@ -150,7 +150,9 @@ class ThreadedTask(threading.Thread):
 		print("Thread started !")
 		
 	def run(self):
-		Res = main(self.index, self.strat, self.gray, self.shortWavelet)
+		rgb_path = 'examples/rgb.jpg'
+		ir_path = 'examples/ir.png'
+		Res = main(rgb_path, ir_path, self.strat, self.shortWavelet)
 		
 		Res[0].insert(0, "Metrics for (strategy " + self.strat + ", wavelet " + self.wavelet + ") : " + str(self.index))
 		Res[0].append("**************************")
