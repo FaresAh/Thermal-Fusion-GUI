@@ -10,13 +10,12 @@ from scipy.fftpack import fftshift
 def IQI(X, Y):
 	"""
 	Calculate the Image Quality Index of an image compared to a reference image
-	More information about this metric can be found here :
 	
 	X - the image
 	Y - the reference image
 	
 	
-	Returns the Image Quality Index of X - IQI(X) [-1, 1]
+	Return the Image Quality Index of X - IQI(X) ∈ [-1, 1]
 	"""
 	def __conv(x):
 		window = np.ones((BLOCK_SIZE, BLOCK_SIZE))
@@ -60,7 +59,7 @@ def SSIM(X, Y):
 	Y - the second image
 	
 	
-	Returns the Structural Similarity - SSIM(X, Y) [-1, 1]
+	Return the Structural Similarity - SSIM(X, Y) ∈ [-1, 1]
 	"""
 	
 	return compare_ssim(X, Y, multichannel=True)
@@ -72,7 +71,7 @@ def entr(coeffs):
 	coeffs - the image
 	
 	
-	Returns entropy - H(coeffs)
+	Return entropy - H(coeffs) > 0
 	"""
 	return shannon_entropy(coeffs)
 	
@@ -80,23 +79,23 @@ def entr(coeffs):
 def spatial(I):
 	"""
 	Calculate the Spatial Frequency of an Image 
-	More information about this metric can be found in the following paper :
 	
 	I - the image
 	
-	Returns the Spatial Frequency - SF(I) > 0
+	Return the Spatial Frequency - SF(I) > 0
 	"""
-	w, h = I.shape[0], I.shape[1]
 	
-	row = (np.diff(I, axis=1)**2).mean(axis=(0, 1))
-	column = (np.diff(I, axis=0)**2).mean(axis=(0, 1))
+	Input = I.astype(int)
+	
+	row = (np.diff(Input, axis=1)**2).mean(axis=(0, 1))
+	column = (np.diff(Input, axis=0)**2).mean(axis=(0, 1))
 	
 	# Main Diagonal frequency
-	diagonal_m = (I[1:, 1:] - I[:-1, :-1])**2
+	diagonal_m = (Input[1:, 1:] - Input[:-1, :-1])**2
 	diagonal_m = diagonal_m.mean(axis=(0, 1)) / np.sqrt(2)
 	
 	# Secondary Diagonal frequency
-	diagonal_s = (I[1:, :-1] - I[:-1, 1:]) ** 2
+	diagonal_s = (Input[1:, :-1] - Input[:-1, 1:]) ** 2
 	diagonal_s = diagonal_s.mean(axis=(0, 1)) / np.sqrt(2)
 	
 	# SF = sqrt(RF^2 + CF^2 + MDF^2 + SDF^2)
@@ -111,23 +110,25 @@ def spatial_reference(X, Y):
 	Y - the second reference image
 	
 	
-	Returns the Spatial Frequency - SF(X, Y) > 0
+	Return the Spatial Frequency - SF(X, Y) > 0
 	"""
+	RefFirst = X.astype(int)
+	RefSecond = Y.astype(int)
 	
-	first = np.diff(X, axis=1)**2
-	second = np.diff(Y, axis=1)**2
+	first = np.diff(RefFirst, axis=1)**2
+	second = np.diff(RefSecond, axis=1)**2
 	row = np.maximum(first, second).mean(axis=(0, 1))
 	
-	first = np.diff(X, axis=0)**2
-	second = np.diff(Y, axis=0)**2
+	first = np.diff(RefFirst, axis=0)**2
+	second = np.diff(RefSecond, axis=0)**2
 	column = np.maximum(first, second).mean(axis=(0, 1))
 	
-	first = (X[1:, 1:] - Y[:-1, :-1])**2
-	second = (X[1:, 1:] - Y[:-1, :-1])**2
+	first = (RefFirst[1:, 1:] - RefFirst[:-1, :-1])**2
+	second = (RefSecond[1:, 1:] - RefSecond[:-1, :-1])**2
 	diagonal_m = np.maximum(first, second).mean(axis=(0, 1)) / np.sqrt(2)
 
-	first = (X[1:, :-1] - Y[:-1, 1:]) ** 2
-	second = (X[1:, :-1] - Y[:-1, 1:]) ** 2
+	first = (RefFirst[1:, :-1] - RefFirst[:-1, 1:]) ** 2
+	second = (RefSecond[1:, :-1] - RefSecond[:-1, 1:]) ** 2
 	diagonal_s = np.maximum(first, second).mean(axis=(0, 1)) / np.sqrt(2)
 	
 	return np.sqrt(row * column * diagonal_s * diagonal_m)
@@ -141,7 +142,7 @@ def rSFe(SF_input, SF_ref):
 	SF_ref 		- the spatial frequency of the reference images
 	
 	
-	Returns the ratio of Spatial Frequency Error. A positive result means that an over-fused image, 
+	Returns the ratio of Spatial Frequency Error ∈ [-1, 1]. A positive result means that an over-fused image, 
 	with some distortion or noise introduced, has resulted. A negative result denotes that an under-fused image, 
 	with some meaningful information lost, has been produced.
 	"""

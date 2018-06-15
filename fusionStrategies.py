@@ -1,8 +1,6 @@
 import numpy as np
-import math
 from skimage import filters
 from skimage.color.adapt_rgb import adapt_rgb, each_channel
-from metrics import entr
 from skimage.measure.entropy import shannon_entropy
 from scipy import ndimage
 
@@ -18,7 +16,7 @@ def MACD(coeff1, coeff2):
 	coeff2 - coefficient of the IR image
 	
 	
-	Returns fused coefficient 
+	Return fused coefficient 
 	"""
 	A1 = Activity(coeff1)
 	A2 = Activity(coeff2)
@@ -27,6 +25,14 @@ def MACD(coeff1, coeff2):
 	return np.where(D == 0., np.maximum(coeff1, coeff2), D * coeff1 + (1 - D) * coeff2)
 	
 def Activity(coeff):
+	"""
+	Apply the Activity block of the MACD fusion strategy to the coefficient given in parameter
+	
+	coeff 	- coefficient
+	
+	
+	Return Activity coefficient
+	"""
 	return np.absolute(coeff)
 
 def Match(coeff1, coeff2):
@@ -37,7 +43,7 @@ def Match(coeff1, coeff2):
 	coeff2 - coefficient of the IR image
 	
 	
-	Returns match coefficient
+	Return match coefficient
 	"""
 	mult = (coeff1 * coeff2) / (np.abs(coeff1)**2 + np.abs(coeff2)**2 + np.finfo(np.float32).eps)
 	if mult.ndim == 3:
@@ -56,7 +62,7 @@ def Decision(coeff1, coeff2, m, fract = 0.5):
 	fract  - threshold between pure maximum and weighted max
 	
 	
-	Returns decision coefficient 
+	Return decision coefficient 
 	"""
 	mean = np.mean(m)
 	delta = coeff1 + coeff2
@@ -70,7 +76,7 @@ def coeffsEntropy(coeff1, coeff2):
 	coeff2 - coefficient of the IR image
 	
 	
-	Returns fused coefficient 
+	Return fused coefficient 
 	"""
 	entropy1 = shannon_entropy(coeff1 - coeff1.min())
 	entropy2 = shannon_entropy(coeff2 - coeff2.min())
@@ -84,6 +90,9 @@ def edgeDetection(coeff1, coeff2):
 	
 	coeff1 	- first coefficient
 	coeff2 	- second coefficient
+	
+	
+	Return fused coefficient
 	"""
 	edges_RGB = sobel_each(coeff1)
 	edges_IR = sobel_each(coeff2)
@@ -118,6 +127,9 @@ def deviation(coeff1, coeff2, window_size = 4):
 	
 	coeff1 	- first coefficient
 	coeff2 	- second coefficient
+	
+	
+	Return fused coefficient
 	"""
 	w, h = coeff1.shape[:2]
 	result = np.zeros(coeff1.shape)

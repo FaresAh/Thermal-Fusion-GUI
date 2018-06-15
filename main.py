@@ -32,9 +32,9 @@ def main(rgb_path, ir_path, strategy = "All", wavelet='db'):
 	"""
 	Main Fusion procedure, applies the fusion algorithm on the image
 	
-	index 	  - the index of the image
+	rgb_path  - the path to the RGB image
+	ir_path	  - the path to the infrared image
 	strategy  - the fuison strategy to apply to the image
-	gray 	  - indicate if the fusion process is to be applied on grayscale images
 	wavelet   - the wavelet to use
 	-----------
 	
@@ -44,7 +44,7 @@ def main(rgb_path, ir_path, strategy = "All", wavelet='db'):
 	Results - The fused image(s) (array)
 	Titles 	- The name of the image(s) for the display (array)
 	"""
-	I1 = cv2.imread(rgb_path, 1)[:,:382]
+	I1 = cv2.imread(rgb_path, 1)
 	I2 = cv2.imread(ir_path, 1)
 	
 	if (strategy == "All"):
@@ -76,11 +76,7 @@ def fuseSelection(I1, I2, strategy, wavelet):
 	
 	I1 			- the first image
 	I2 			- the second image
-	I1_gray 	- a grayscale version of the first image
-	I2_gray 	- a grayscale version of the second image
 	strategy	- the strategy to apply
-	sp_input 	- the spatial frequency of the reference images
-	is_gray 	- indicates if the fusion should be apply with grayscale images
 	wavelet 	- the wavelet to use
 	-------------
 	
@@ -98,11 +94,13 @@ def fuseSelection(I1, I2, strategy, wavelet):
 	if fusion_result.ndim == 3:
 		result = cv2.cvtColor(fusion_result, cv2.COLOR_BGR2RGB)
 		gray = cv2.cvtColor(result, cv2.COLOR_RGB2GRAY)
+		
 	else:
 		gray = fusion_result
 		result = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 		
 	timing = (time.time() - time_start)
+	
 	
 	sp_input = spatial_reference(I1, I2)
 	sp_m = spatial(result)
@@ -121,8 +119,6 @@ def fuseSelection(I1, I2, strategy, wavelet):
 
 	Results = [result]
 	Titles = [strategy]
-	
-	cv2.imwrite(strategy + ".png", result)
 	
 	return (array, Results, Titles)
 	

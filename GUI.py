@@ -20,7 +20,7 @@ class Window(Frame):
 
  
 	def init_window(self):
-		self.master.title("Image Fusion GUI")
+		self.master.title("Thermal Fusion GUI")
 
 		
 		self.pack(fill=BOTH, expand=1)
@@ -41,9 +41,9 @@ class Window(Frame):
 		
 		self.canvasIR = canvasIR
 		
-		entry = Entry(self)
-		entry.grid(column=0, row=1)
-		self.entry = entry
+		#entry = Entry(self)
+		#entry.grid(column=0, row=1)
+		#self.entry = entry
 		
 		button = Button(self, text = "Show RGB and IR images", command = self.showImg)
 		button.grid(column=1, row=1)
@@ -68,12 +68,6 @@ class Window(Frame):
 		self.dropdown = OptionMenu(self, self.variable, options[0], *options)
 		self.dropdown.grid(column=3, row=1)
 		
-		self.checkVar = BooleanVar()
-		self.checkVar.set(False)
-		
-		self.gray = Checkbutton(self, variable=self.checkVar, onvalue=True, offvalue=False, text="Grayscale ?")
-		self.gray.grid(column=2, row=1)
-		
 		# Only the first wavelets are functionnal
 		wavelets = families(short=False)[:7]
 		shortWavelets = families()[:7]
@@ -87,7 +81,7 @@ class Window(Frame):
 		self.waveletDropdown.grid(column=4, row=1)
 		
 	def showImg(self):
-		s = self.entry.get()
+		#s = self.entry.get()
 		
 		RGB = ImageTk.PhotoImage(Image.open('examples/rgb.jpg'))
 		IR = ImageTk.PhotoImage(Image.open('examples/ir.png'))
@@ -103,12 +97,12 @@ class Window(Frame):
 		self.queue = Queue()
 		
 	def startFusion(self):
-		s = self.entry.get()
+		#s = self.entry.get()
 	
 		self.progressbar.start()
 		
 		
-		ThreadedTask(self.queue, s, self.variable.get(), self.checkVar.get(), 
+		ThreadedTask(self.queue, self.variable.get(), 
 					 self.waveletVar.get(), self.dictWavelets[self.waveletVar.get()]).start()
 		self.master.after(2000, self.process_queue)
 
@@ -117,8 +111,7 @@ class Window(Frame):
 			arr, Results, Titles = self.queue.get(0)
 			
 			self.displayMetrics(arr)
-			show_images(Results, math.ceil(len(Results) / 2.0), Titles)
-			
+			show_images(Results, 3, Titles)
 			
 			
 			if (self.queue.empty()):
@@ -139,14 +132,14 @@ class Window(Frame):
 
 class ThreadedTask(threading.Thread):
 	
-	def __init__(self, queue, index, strat, gray, wavelet, shortWavelet):
+	def __init__(self, queue, strat, wavelet, shortWavelet):
 		threading.Thread.__init__(self)
+		
 		self.queue = queue
-		self.index = index
 		self.strat = strat
-		self.gray = gray
 		self.wavelet = wavelet
 		self.shortWavelet = shortWavelet
+		
 		print("Thread started !")
 		
 	def run(self):
@@ -154,12 +147,12 @@ class ThreadedTask(threading.Thread):
 		ir_path = 'examples/ir.png'
 		Res = main(rgb_path, ir_path, self.strat, self.shortWavelet)
 		
-		Res[0].insert(0, "Metrics for (strategy " + self.strat + ", wavelet " + self.wavelet + ") : " + str(self.index))
+		Res[0].insert(0, "Metrics for (strategy " + self.strat + ", wavelet " + self.wavelet + ")")
 		Res[0].append("**************************")
 
 		self.queue.put(Res)
 		
-		print("Thread for image " + str(self.index) + " (strategy : " + self.strat + ", wavelet " + self.wavelet + ") ended ! ")
+		print("Thread (strategy : " + self.strat + ", wavelet " + self.wavelet + ") ended ! ")
 
 
 if __name__ == '__main__':

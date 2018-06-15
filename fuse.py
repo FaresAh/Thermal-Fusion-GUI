@@ -11,7 +11,8 @@ def fusedImage(I1, I2, FUSION_METHOD, wavelet = 'db'):
 	FUSION_METOD	- the fusion strategy to apply to the coefficients
 	wavelet 		- the wavelet to use
 	
-	Returns the fused image I
+	
+	Return fused image 
 	"""
 	wave = wavelist(wavelet)[0]
 	
@@ -23,6 +24,7 @@ def fusedImage(I1, I2, FUSION_METHOD, wavelet = 'db'):
 	fusedCoeff = []
 	for i in range(len(coeff1)):
 		# coeffs = (cA, (cH_n, cV_n, cD_n), ...., ..(cH_1, cV_1, cD_1))
+		
 		if (i == 0):
 			cA = fuseCoeff(coeff1[0], coeff2[0], FUSION_METHOD)
 			fusedCoeff.append(cA)
@@ -51,7 +53,7 @@ def fuseCoeff(coeff1, coeff2, method):
 	method - the fusion strategy to apply
 	
 	
-	Returns fused coefficient 
+	Return fused coefficient 
 	"""
 	if (method == 'Mean'):
 		return (coeff1 + coeff2)/2
