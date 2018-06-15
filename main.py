@@ -73,7 +73,7 @@ def main(rgb_path, ir_path, strategy = "All", gray = False, wavelet = 'db'):
 		return (array, Results, Titles)
 		
 	else:
-		if (strategy == "Edge" or strategy == "Deviation" or strategy == "MACD"):
+		if (strategy == "Edge" or strategy == "Deviation"):
 			return fuseSelection(I1, I2, I1_gray, I2_gray, strategy, sp_input, True, wavelet)
 		else:
 			return fuseSelection(I1, I2, I1_gray, I2_gray, strategy, sp_input, gray, wavelet)
@@ -137,12 +137,18 @@ def fuseSelection(I1, I2, I1_gray, I2_gray, strategy, sp_input, is_gray, wavelet
 	
 	
 if __name__ == '__main__':
-	rgb_path = str(input("Enter the rgb image path : "))
-	ir_path = str(input("Enter the thermal image path : "))
+	# rgb_path = str(input("Enter the rgb image path : "))
+	# ir_path = str(input("Enter the thermal image path : "))
 	
-	strategy = input("Strategy to use : (All - Min - Max - Mean - Entropy - MACD - Edge - Deviation) : ")
+	# strategy = input("Strategy to use : (All - Min - Max - Mean - Entropy - MACD - Edge - Deviation) : ")
 	
-	gray = int(input("Grayscale ? (0 for no) : "))
+	# gray = int(input("Grayscale ? (0 for no) : "))
+	
+	rgb_path = 'examples/rgb.jpg'
+	ir_path = 'examples/ir.png'
+	strategy = 'MACD'
+	gray = 0
+	
 	
 	array, Results, Titles = main(rgb_path, ir_path, strategy, gray != 0)
 

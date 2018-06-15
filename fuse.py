@@ -1,7 +1,6 @@
 import numpy as np
 from pywt import wavedec2, waverec2, wavelist
-from fusionStrategys import minim, maxim, coeffsEntropy
-from fusionStrategysGray import minimGray, maximGray, coeffsEntropyGray, MACD, edgeDetection, deviation
+from fusionStrategysGray import MACD, edgeDetection, deviation
 
 def fusedImage(I1, I2, FUSION_METHOD, wavelet = 'db', gray = False):
 	"""
@@ -18,33 +17,26 @@ def fusedImage(I1, I2, FUSION_METHOD, wavelet = 'db', gray = False):
 	wave = wavelist(wavelet)[0]
 	
 	# Apply wavelets on both image
-	coeff1 = wavedec2(I1, wave, level= 1)
-	coeff2 = wavedec2(I2, wave, level= 1)
-
+	coeff1 = wavedec2(I1, wave, level= 1, axes=(0, 1))
+	coeff2 = wavedec2(I2, wave, level= 1, axes=(0, 1))
+	
 	# For each level of decomposition, apply the fusion scheme wanted
 	fusedCoeff = []
 	for i in range(len(coeff1)):
 		# coeffs = (cA, (cH_n, cV_n, cD_n), ...., ..(cH_1, cV_1, cD_1))
-		
 		if (i == 0):
 			cA = fuseCoeff(coeff1[0], coeff2[0], FUSION_METHOD, gray)
-			
 			fusedCoeff.append(cA)
 
 		else:
 			# For the rest of the levels we have tupels with 3 coefficents
-
 			cH = fuseCoeff(coeff1[i][0], coeff2[i][0], FUSION_METHOD, gray)
 			cV = fuseCoeff(coeff1[i][1], coeff2[i][1], FUSION_METHOD, gray)
 			cD = fuseCoeff(coeff1[i][2], coeff2[i][2], FUSION_METHOD, gray)
-			
 			fusedCoeff.append((cH, cV, cD))
 			
-			
-
 	# Recompose the result image
-	fusedImage = waverec2(fusedCoeff, wave)
-
+	fusedImage = waverec2(fusedCoeff, wave, axes=(0, 1))
 	# Normalize the values
 	fusedImage = np.multiply(np.divide(fusedImage - np.min(fusedImage),(np.max(fusedImage) - np.min(fusedImage))),255)
 	fusedImage = fusedImage.astype(np.uint8)
@@ -91,9 +83,9 @@ def fusedEdge(I1, I2, wavelet = 'db'):
 	
 	fusedCoeff.append((cH_2, cV_2, cD_2))
 	
-	cH_1 = minimGray(coeff1[4][0], coeff2[4][0])
-	cV_1 = minimGray(coeff1[4][1], coeff2[4][1])
-	cD_1 = minimGray(coeff1[4][2], coeff2[4][2])
+	cH_1 = np.minimum(coeff1[4][0], coeff2[4][0])
+	cV_1 = np.minimum(coeff1[4][1], coeff2[4][1])
+	cD_1 = np.minimum(coeff1[4][2], coeff2[4][2])
 	
 	fusedCoeff.append((cH_1, cV_1, cD_1))
 			
@@ -107,6 +99,21 @@ def fusedEdge(I1, I2, wavelet = 'db'):
 	fusedImage = fusedImage.astype(np.uint8)
 
 	return fusedImage
+	
+def coeffsEntropy(coeff1, coeff2):
+	"""
+	Apply the entropy fusion strategy to the coefficients given in parameters
+	
+	coeff1 - coefficient of the RGB image
+	coeff2 - coefficient of the IR image
+	
+	
+	Returns fused coefficient 
+	"""
+	entropy1 = shannon_entropy(coeff1 - coeff1.min())
+	entropy2 = shannon_entropy(coeff2 - coeff2.min())
+	delt = entropy1 + entropy2
+	return (entropy1 * coeff1 + entropy2 * coeff2) / delt
 
 def fuseCoeff(coeff1, coeff2, method, gray = False):
 	"""
@@ -122,19 +129,16 @@ def fuseCoeff(coeff1, coeff2, method, gray = False):
 	
 	if (gray):
 		return fuseCoeffGray(coeff1, coeff2, method)
-		
-	coeff = []
-	
-	if (method == 'Mean'):
-		coeff = (coeff1 + coeff2)/2
+	elif (method == 'Mean'):
+		return (coeff1 + coeff2)/2
 	elif (method == 'Min'):
-		coeff = minim(coeff1, coeff2)
+		return np.minimum(coeff1, coeff2)
 	elif (method == 'Max'):
-		coeff = maxim(coeff1, coeff2)
+		return np.maximum(coeff1, coeff2)
 	elif (method == "Entropy"):
-		coeff = coeffsEntropy(coeff1, coeff2)
-
-	return coeff
+		return coeffsEntropy(coeff1, coeff2)
+	elif method == 'MACD':
+		return MACD(coeff1, coeff2)
 
 def fuseCoeffGray(coeff1, coeff2, method):
 	"""
@@ -147,19 +151,15 @@ def fuseCoeffGray(coeff1, coeff2, method):
 	
 	Returns fused coefficient 
 	"""
-	coeff = []
-	
 	if (method == 'Mean'):
-		coeff = (coeff1 + coeff2)/2
+		return (coeff1 + coeff2)/2
 	elif (method == 'Min'):
-		coeff = minimGray(coeff1, coeff2)
+		return np.minimum(coeff1, coeff2)
 	elif (method == 'Max'):
-		coeff = maximGray(coeff1, coeff2)
+		return np.maximum(coeff1, coeff2)
 	elif (method == "Entropy"):
-		coeff = coeffsEntropyGray(coeff1, coeff2)
+		return coeffsEntropy(coeff1, coeff2)
 	elif (method == "MACD"):
-		coeff = MACD(coeff1, coeff2)
+		return MACD(coeff1, coeff2)
 	elif (method == "Deviation"):
-		coeff = deviation(coeff1, coeff2)
-
-	return coeff
+		return deviation(coeff1, coeff2)
