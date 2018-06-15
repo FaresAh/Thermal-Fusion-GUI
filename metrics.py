@@ -16,6 +16,8 @@ def IQI(X, Y):
 	
 	
 	Return the Image Quality Index of X - IQI(X) ∈ [-1, 1]
+	Note that a value out of those boundaries indicates that the image are too
+	different to be comparable.
 	"""
 	def __conv(x):
 		window = np.ones((BLOCK_SIZE, BLOCK_SIZE))
@@ -60,6 +62,8 @@ def SSIM(X, Y):
 	
 	
 	Return the Structural Similarity - SSIM(X, Y) ∈ [-1, 1]
+	Note that a value out of those boundaries indicates that the image are too
+	different to be comparable.
 	"""
 	
 	return compare_ssim(X, Y, multichannel=True)
@@ -145,5 +149,7 @@ def rSFe(SF_input, SF_ref):
 	Returns the ratio of Spatial Frequency Error ∈ [-1, 1]. A positive result means that an over-fused image, 
 	with some distortion or noise introduced, has resulted. A negative result denotes that an under-fused image, 
 	with some meaningful information lost, has been produced.
+	Note that a value out of those boundaries indicates that the image are too
+	different to be comparable.
 	"""
 	return (SF_input - SF_ref) / SF_ref
