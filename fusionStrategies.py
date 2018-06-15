@@ -9,6 +9,10 @@ from scipy import ndimage
 @adapt_rgb(each_channel)
 def sobel_each(image):
 	return filters.sobel(image)
+	
+@adapt_rgb(each_channel)
+def std_each(image):
+	return ndimage.filters.generic_filter(image, np.std, (4, 4), mode='constant')
 
 def MACD(coeff1, coeff2):
 	"""
@@ -94,8 +98,24 @@ def edgeDetection(coeff1, coeff2):
 	entropy_sum = entropy_RGB + entropy_IR + np.finfo(np.float32).eps
 	
 	return (entropy_RGB * coeff1 + entropy_IR * coeff2) / entropy_sum
-
-def deviation(coeff1, coeff2, window_size = 8):
+	
+# def deviation(coeff1, coeff2, window_size = 8):
+	# """
+	# Fuse two coefficients by first dividing the coefficients, then using the 
+	# standard deviation criterion
+	
+	# coeff1 	- first coefficient
+	# coeff2 	- second coefficient
+	# """
+	# import time
+	# time_start = time.time()
+	# stdr = std_each(coeff1)
+	# print (time.time() - time_start)
+	# stdi = std_each(coeff2)
+	# sum_std = stdr + stdi + np.finfo(np.float32).eps
+	# return (stdr * coeff1 + stdi * coeff2) / sum_std
+	
+def deviation(coeff1, coeff2, window_size = 4):
 	"""
 	Fuse two coefficients by first dividing the coefficients, then using the 
 	standard deviation criterion
@@ -103,26 +123,16 @@ def deviation(coeff1, coeff2, window_size = 8):
 	coeff1 	- first coefficient
 	coeff2 	- second coefficient
 	"""
-	w, h = coeff1.shape
-	res = np.zeros(coeff1.shape)
+	w, h = coeff1.shape[:2]
+	result = np.zeros(coeff1.shape)
 	
-	Stdr = 0.
-	Stdi = 0.
-	
-	sum_Std = 0.
 	for i in range(0, w, window_size):
 		for j in range(0, h, window_size):
 			RGB = coeff1[i:min(i + window_size, w), j:min(j + window_size, h)]
 			IR = coeff2[i:min(i + window_size, w), j:min(j + window_size, h)]
-			
-			Stdr = np.std(RGB)
-			Stdi = np.std(IR)
-			
-			sum_Std = Stdr + Stdi
-			
-			if (sum_Std == 0.):
-				res[i:min(i + window_size, w), j:min(j + window_size, h)] = (RGB + IR)/2.
-			else:
-				res[i:min(i + window_size, w), j:min(j + window_size, h)] = Stdr/sum_Std * RGB + Stdi/sum_Std * IR
+
+			stdr = np.std(RGB, axis=(0, 1))
+			stdi = np.std(IR, axis=(0, 1))
+			result[i:min(i+window_size, w), j:min(j+window_size, h)] = (stdr * RGB + stdi * IR) / (stdr + stdi + np.finfo(np.float32).eps)
 	
-	return res
+	return result

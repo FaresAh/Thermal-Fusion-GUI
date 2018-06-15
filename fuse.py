@@ -1,8 +1,8 @@
 import numpy as np
 from pywt import wavedec2, waverec2, wavelist
-from fusionStrategysGray import MACD, edgeDetection, deviation, coeffsEntropy
+from fusionStrategies import MACD, edgeDetection, deviation, coeffsEntropy
 
-def fusedImage(I1, I2, FUSION_METHOD, wavelet = 'db', gray = False):
+def fusedImage(I1, I2, FUSION_METHOD, wavelet = 'db'):
 	"""
 	Fusion algorithm using wavelets
 	
@@ -24,14 +24,14 @@ def fusedImage(I1, I2, FUSION_METHOD, wavelet = 'db', gray = False):
 	for i in range(len(coeff1)):
 		# coeffs = (cA, (cH_n, cV_n, cD_n), ...., ..(cH_1, cV_1, cD_1))
 		if (i == 0):
-			cA = fuseCoeff(coeff1[0], coeff2[0], FUSION_METHOD, gray)
+			cA = fuseCoeff(coeff1[0], coeff2[0], FUSION_METHOD)
 			fusedCoeff.append(cA)
 
 		else:
 			# For the rest of the levels we have tupels with 3 coefficents
-			cH = fuseCoeff(coeff1[i][0], coeff2[i][0], FUSION_METHOD, gray)
-			cV = fuseCoeff(coeff1[i][1], coeff2[i][1], FUSION_METHOD, gray)
-			cD = fuseCoeff(coeff1[i][2], coeff2[i][2], FUSION_METHOD, gray)
+			cH = fuseCoeff(coeff1[i][0], coeff2[i][0], FUSION_METHOD)
+			cV = fuseCoeff(coeff1[i][1], coeff2[i][1], FUSION_METHOD)
+			cD = fuseCoeff(coeff1[i][2], coeff2[i][2], FUSION_METHOD)
 			fusedCoeff.append((cH, cV, cD))
 			
 	# Recompose the result image
@@ -42,36 +42,9 @@ def fusedImage(I1, I2, FUSION_METHOD, wavelet = 'db', gray = False):
 	
 	return fusedImage
 
-def fuseCoeff(coeff1, coeff2, method, gray = False):
+def fuseCoeff(coeff1, coeff2, method):
 	"""
 	Apply the fusion strategy given in parameter to the coefficient from both images
-	
-	coeff1 - coefficient of the RGB image
-	coeff2 - coefficient of the IR image
-	method - the fusion strategy to apply
-	
-	
-	Returns fused coefficient 
-	"""
-	
-	if (gray):
-		return fuseCoeffGray(coeff1, coeff2, method)
-	elif (method == 'Mean'):
-		return (coeff1 + coeff2)/2
-	elif (method == 'Min'):
-		return np.minimum(coeff1, coeff2)
-	elif (method == 'Max'):
-		return np.maximum(coeff1, coeff2)
-	elif (method == "Entropy"):
-		return coeffsEntropy(coeff1, coeff2)
-	elif method == 'MACD':
-		return MACD(coeff1, coeff2)
-	elif method == 'Edge':
-		return edgeDetection(coeff1, coeff2)
-
-def fuseCoeffGray(coeff1, coeff2, method):
-	"""
-	Apply the fusion strategy given in parameter to the coefficient from both grayscale images
 	
 	coeff1 - coefficient of the RGB image
 	coeff2 - coefficient of the IR image
@@ -88,9 +61,9 @@ def fuseCoeffGray(coeff1, coeff2, method):
 		return np.maximum(coeff1, coeff2)
 	elif (method == "Entropy"):
 		return coeffsEntropy(coeff1, coeff2)
-	elif (method == "MACD"):
+	elif method == 'MACD':
 		return MACD(coeff1, coeff2)
-	elif (method == "Deviation"):
-		return deviation(coeff1, coeff2)
 	elif method == 'Edge':
 		return edgeDetection(coeff1, coeff2)
+	elif (method == "Deviation"):
+		return deviation(coeff1, coeff2)
