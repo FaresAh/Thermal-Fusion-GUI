@@ -8,6 +8,7 @@ from PIL import Image, ImageTk
 import threading
 from pywt import families
 import math
+import os
 
 class Window(Frame):
 	def __init__(self, master=None):
@@ -21,7 +22,18 @@ class Window(Frame):
  
 	def init_window(self):
 		self.master.title("Thermal Fusion GUI")
-
+		
+		menu = Menu(self)
+		self.master.config(menu=menu)
+		
+		filemenu = Menu(menu)
+		
+		menu.add_cascade(label="File", menu=filemenu)
+		filemenu.add_command(label="Open RGB Image", command=lambda: self.loadFile(True))
+		filemenu.add_command(label="Open IR Image", command=lambda: self.loadFile(False))
+		filemenu.add_command(label="Open Example Images", command=self.loadDefault)
+		filemenu.add_separator()
+		filemenu.add_command(label="Exit", command=self.client_exit)
 		
 		self.pack(fill=BOTH, expand=1)
 		
@@ -41,23 +53,27 @@ class Window(Frame):
 		
 		self.canvasIR = canvasIR
 		
-		#entry = Entry(self)
-		#entry.grid(column=0, row=1)
-		#self.entry = entry
-		
-		button = Button(self, text = "Show RGB and IR images", command = self.showImg)
-		button.grid(column=1, row=1)
+		button = Button(self, text = "Load example images", command=self.loadDefault)
+		button.grid(column=2, row=0)
 		self.button = button
 		
-		fusion = Button(self, text = "Start fusion process", command = self.startFusion)
-		fusion.grid_forget()
+		buttonRGB = Button(self, text = "Select RGB Image", command=lambda: self.loadFile(True))
+		buttonRGB.grid(column=0, row=1)
+		self.buttonRGB = buttonRGB
+
+		buttonIR = Button(self, text = "Select IR Image", command=lambda: self.loadFile(False))
+		buttonIR.grid(column=1, row=1)
+		self.buttonIR = buttonIR
+		
+		fusion = Button(self, text = "Start fusion process", command=self.startFusion)
+		fusion.grid(column=0, row=2)
 		self.fusion = fusion
 		
 		text = Text(self, width=70, height=15)
 		text.grid(column=0, row=3)
 		self.text=text
 				
-		self.progressbar = Progressbar(self, orient = HORIZONTAL, mode = 'indeterminate',length=100)
+		self.progressbar = Progressbar(self, orient=HORIZONTAL, mode='indeterminate',length=100)
 		self.progressbar.grid(column=1, row=3)
 
 		options = ["All", "Min", "Max", "Mean", "Entropy", "MACD", "Edge", "Deviation"]
@@ -80,38 +96,54 @@ class Window(Frame):
 		self.waveletDropdown = OptionMenu(self, self.waveletVar, wavelets[1], *wavelets)
 		self.waveletDropdown.grid(column=4, row=1)
 		
-	def showImg(self):
-		#s = self.entry.get()
-		
-		RGB = ImageTk.PhotoImage(Image.open('examples/rgb.jpg'))
-		IR = ImageTk.PhotoImage(Image.open('examples/ir.png'))
-		
-		self.canvasRGB.create_image(0, 0, image=RGB, anchor=NW)
-		self.canvasIR.create_image(0, 0, image=IR, anchor=NW)
-		
-		self.canvasRGB.image = RGB
-		self.canvasIR.image = IR
-		
-		self.fusion.grid(column=0, row=2)
-		
 		self.queue = Queue()
 		
-	def startFusion(self):
-		#s = self.entry.get()
+		self.rgb_path = ""
+		self.ir_path = ""
 	
-		self.progressbar.start()
+	def loadDefault(self):
+		self.rgb_path = 'examples/rgb.jpg'
+		self.ir_path = 'examples/ir.png'
 		
+		self.showImg()
+	
+	def loadFile(self, is_rgb = True):
+		filename = filedialog.askopenfilename(initialdir=os.getcwd(),title='Choose a file', filetypes = [("Image File", "*.jpg *.png")])
+
+		if filename:
+			if (is_rgb):
+				self.rgb_path = filename 
+			else:
+				self.ir_path = filename
+			
+			self.showImg()
 		
-		ThreadedTask(self.queue, self.variable.get(), 
-					 self.waveletVar.get(), self.dictWavelets[self.waveletVar.get()]).start()
-		self.master.after(2000, self.process_queue)
+	def showImg(self):
+		if (self.rgb_path):
+			RGB = ImageTk.PhotoImage(Image.open(self.rgb_path))
+			self.canvasRGB.create_image(0, 0, image=RGB, anchor=NW)
+			self.canvasRGB.image = RGB
+		
+		if (self.ir_path):
+			IR = ImageTk.PhotoImage(Image.open(self.ir_path))
+			self.canvasIR.create_image(0, 0, image=IR, anchor=NW)
+			self.canvasIR.image = IR
+		
+	def startFusion(self):
+		if (self.rgb_path and self.ir_path):
+			self.progressbar.start()
+			
+			
+			ThreadedTask(self.rgb_path, self.ir_path, self.queue, self.variable.get(), 
+						 self.waveletVar.get(), self.dictWavelets[self.waveletVar.get()]).start()
+			self.master.after(2000, self.process_queue)
 
 	def process_queue(self):
 		try:
 			arr, Results, Titles = self.queue.get(0)
 			
 			self.displayMetrics(arr)
-			show_images(Results, 3, Titles)
+			show_images(Results, math.ceil(len(Results) / 3.0), Titles)
 			
 			
 			if (self.queue.empty()):
@@ -132,9 +164,11 @@ class Window(Frame):
 
 class ThreadedTask(threading.Thread):
 	
-	def __init__(self, queue, strat, wavelet, shortWavelet):
+	def __init__(self, rgb_path, ir_path, queue, strat, wavelet, shortWavelet):
 		threading.Thread.__init__(self)
 		
+		self.rgb_path = rgb_path
+		self.ir_path = ir_path
 		self.queue = queue
 		self.strat = strat
 		self.wavelet = wavelet
@@ -143,9 +177,7 @@ class ThreadedTask(threading.Thread):
 		print("Thread started !")
 		
 	def run(self):
-		rgb_path = 'examples/rgb.jpg'
-		ir_path = 'examples/ir.png'
-		Res = main(rgb_path, ir_path, self.strat, self.shortWavelet)
+		Res = main(self.rgb_path, self.ir_path, self.strat, self.shortWavelet)
 		
 		Res[0].insert(0, "Metrics for (strategy " + self.strat + ", wavelet " + self.wavelet + ")")
 		Res[0].append("**************************")

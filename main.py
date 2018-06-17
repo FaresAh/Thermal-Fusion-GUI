@@ -5,6 +5,9 @@ from fuse import fusedImage
 from metrics import *
 import time
 import math
+from tkinter import filedialog
+import tkinter as tk
+import os
 
 def show_images(images, lines = 1, titles = None, blocking = False):
 	"""
@@ -68,7 +71,7 @@ def main(rgb_path, ir_path, strategy = "All", wavelet='db'):
 		
 		return (array, Results, Titles)
 	else:
-		return fuseSelection(I1, I2, I1_gray, I2_gray, strategy, wavelet)
+		return fuseSelection(I1, I2, strategy, wavelet)
 	
 def fuseSelection(I1, I2, strategy, wavelet):
 	"""
@@ -99,23 +102,26 @@ def fuseSelection(I1, I2, strategy, wavelet):
 		gray = fusion_result
 		result = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 		
-	timing = (time.time() - time_start)
+	timing = "%.2f" % (time.time() - time_start)
 	
+	I1_gray = cv2.cvtColor(I1, cv2.COLOR_RGB2GRAY)
+	I2_gray = cv2.cvtColor(I2, cv2.COLOR_RGB2GRAY)
 	
-	sp_input = spatial_reference(I1, I2)
-	sp_m = spatial(result)
+	sp_input = spatial_reference(I1_gray, I2_gray)
+	sp_m = spatial(gray)
+	
 
 	Entropy_m = "%.3f" % shannon_entropy(result)
 	IQI_m = "%.3f" % IQI(I1, result)
 	Spatial_m = "%.3f" % sp_m.sum()
-	rSFe_m = "%.3f" % rSFe(sp_input, sp_m).sum()
+	rSFe_m = "%.3f" % rSFe(sp_m, sp_input).sum()
 	SSIM_m = "%.3f" % SSIM(I1, result)
 		
 	array.append("Spatial Frequency of " + strategy + " : " + Spatial_m + ", rsFe : " + rSFe_m)
 	array.append("SSIM of " + strategy + " : " + SSIM_m)
 	array.append("Entropy of " + strategy + " : " + Entropy_m)
 	array.append("IQI of " + strategy + " : " + IQI_m)
-	array.append("Time elapsed for " + strategy + " : " + str(timing)+ "s")
+	array.append("Time elapsed for " + strategy + " : " + timing+ "s")
 
 	Results = [result]
 	Titles = [strategy]
@@ -124,19 +130,29 @@ def fuseSelection(I1, I2, strategy, wavelet):
 	
 	
 if __name__ == '__main__':
-	# rgb_path = str(input("Enter the rgb image path : "))
-	# ir_path = str(input("Enter the thermal image path : "))
+	root = tk.Tk()
+	root.withdraw()
 	
-	# strategy = input("Strategy to use : (All - Min - Max - Mean - Entropy - MACD - Edge - Deviation) : ")
+	rgb_path = filedialog.askopenfilename(initialdir=os.getcwd(),title='Choose the RGB Image', filetypes = [("Image File (.png, .jpg)", "*.jpg *.png")])
 	
-	rgb_path = 'examples/rgb.jpg'
-	ir_path = 'examples/ir.png'
+	if not rgb_path:
+		print("No RGB Image selected, ending program...")
+		exit()
+	
+	
+	ir_path = filedialog.askopenfilename(initialdir=os.getcwd(),title='Choose the Thermal Image', filetypes = [("Image File (.png, .jpg)", "*.jpg *.png")])
+	
+	if not ir_path:
+		print("No Thermal Image selected, ending program..")
+		exit()
+		
 	strategy = 'All'
 	
+	# strategy = input("Strategy to use : (All - Min - Max - Mean - Entropy - MACD - Edge - Deviation) : ")
 	
 	array, Results, Titles = main(rgb_path, ir_path, strategy)
 
 	for s in array:
 		print(s)
 	
-	show_images(Results, 3, Titles, True)
+	show_images(Results, math.ceil(len(Results) / 3.0), Titles, True)
