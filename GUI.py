@@ -7,6 +7,7 @@ from main import main, show_images
 from PIL import Image, ImageTk
 import threading
 from pywt import families
+from tkinter import filedialog
 import math
 import os
 
